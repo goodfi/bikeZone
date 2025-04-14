@@ -1,0 +1,446 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Użytkownik - główny model użytkownika
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  phone         String?
+  role          UserRole  @default(CUSTOMER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relacje
+  accounts      Account[]
+  addresses     Address[]
+  orders        Order[]
+  reviews       Review[]
+  favorites     Favorite[]
+  carts         Cart[]
+  tickets       Ticket[]
+}
+
+// Konto - różne metody logowania dla tego samego użytkownika
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String  // oauth, email, etc.
+  provider          String  // google, facebook, credentials, etc.
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  password          String? @db.Text // Tylko dla kont z hasłem
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+// Adres - adresy użytkowników
+model Address {
+  id         String      @id @default(cuid())
+  userId     String
+  type       AddressType @default(SHIPPING)
+  firstName  String
+  lastName   String
+  street     String
+  city       String
+  postalCode String
+  country    String
+  phone      String?
+  isDefault  Boolean     @default(false)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders  Order[]  @relation("shippingAddress")
+  billing Order[]  @relation("billingAddress")
+}
+
+// Kategoria produktów
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?  @db.Text
+  image       String?
+  parentId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  parent      Category?       @relation("CategoryToSubcategory", fields: [parentId], references: [id])
+  subcategories Category[]    @relation("CategoryToSubcategory")
+  products    ProductCategory[]
+}
+
+// Marka produktów
+model Brand {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?   @db.Text
+  logo        String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  products    Product[]
+}
+
+// Produkt
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  sku         String?  @unique
+  description String?  @db.Text
+  price       Decimal  @db.Decimal(10, 2)
+  salePrice   Decimal? @db.Decimal(10, 2)
+  brandId     String?
+  stock       Int      @default(0)
+  weight      Decimal? @db.Decimal(10, 2)
+  dimensions  Json?    // {length, width, height}
+  isOnSale    Boolean  @default(false)
+  isNew       Boolean  @default(false)
+  isWeeklyHit Boolean  @default(false)
+  inStock     Boolean  @default(true)
+  rating      Decimal  @default(0) @db.Decimal(3, 2)
+  reviewCount Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacje
+  brand           Brand?            @relation(fields: [brandId], references: [id])
+  categories      ProductCategory[]
+  images          ProductImage[]
+  attributes      ProductAttribute[]
+  variants        ProductVariant[]
+  reviews         Review[]
+  orderItems      OrderItem[]
+  cartItems       CartItem[]
+  favorites       Favorite[]
+  promotionItems  PromotionItem[]
+}
+
+// Relacja wiele-do-wielu między produktami i kategoriami
+model ProductCategory {
+  productId  String
+  categoryId String
+  
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([productId, categoryId])
+}
+
+// Zdjęcia produktów
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  url       String
+  alt       String?
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+// Atrybuty produktów (kolor, rozmiar, itp.)
+model ProductAttribute {
+  id        String   @id @default(cuid())
+  productId String
+  name      String
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+// Warianty produktów
+model ProductVariant {
+  id        String   @id @default(cuid())
+  productId String
+  sku       String?
+  name      String
+  price     Decimal  @db.Decimal(10, 2)
+  salePrice Decimal? @db.Decimal(10, 2)
+  stock     Int      @default(0)
+  attributes Json    // {color: "red", size: "M"}
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+// Recenzje produktów
+model Review {
+  id        String   @id @default(cuid())
+  productId String
+  userId    String
+  rating    Int
+  title     String?
+  content   String?  @db.Text
+  isVerified Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Zamówienie
+model Order {
+  id                String      @id @default(cuid())
+  userId            String
+  orderNumber       String      @unique
+  status            OrderStatus @default(PROCESSING)
+  paymentStatus     PaymentStatus @default(PENDING)
+  paymentMethod     String?
+  shippingMethod    String?
+  shippingAddressId String
+  billingAddressId  String
+  subtotal          Decimal     @db.Decimal(10, 2)
+  shippingCost      Decimal     @db.Decimal(10, 2)
+  tax               Decimal     @db.Decimal(10, 2)
+  discount          Decimal     @default(0) @db.Decimal(10, 2)
+  total             Decimal     @db.Decimal(10, 2)
+  notes             String?     @db.Text
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relacje
+  user              User        @relation(fields: [userId], references: [id])
+  shippingAddress   Address     @relation("shippingAddress", fields: [shippingAddressId], references: [id])
+  billingAddress    Address     @relation("billingAddress", fields: [billingAddressId], references: [id])
+  items             OrderItem[]
+  transactions      Transaction[]
+}
+
+// Pozycje zamówienia
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  name      String
+  sku       String?
+  price     Decimal  @db.Decimal(10, 2)
+  quantity  Int
+  attributes Json?   // {color: "red", size: "M"}
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id])
+}
+
+// Transakcje płatności
+model Transaction {
+  id            String          @id @default(cuid())
+  orderId       String
+  amount        Decimal         @db.Decimal(10, 2)
+  status        PaymentStatus
+  provider      String
+  transactionId String?
+  metadata      Json?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  order         Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+// Koszyk
+model Cart {
+  id        String    @id @default(cuid())
+  userId    String?
+  sessionId String?   @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+}
+
+// Pozycje koszyka
+model CartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  productId String
+  quantity  Int
+  attributes Json?   // {color: "red", size: "M"}
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id])
+}
+
+// Ulubione produkty
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+}
+
+// Zgłoszenia/Tickety
+model Ticket {
+  id          String      @id @default(cuid())
+  userId      String
+  subject     String
+  status      TicketStatus @default(OPEN)
+  priority    TicketPriority @default(MEDIUM)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user        User        @relation(fields: [userId], references: [id])
+  messages    TicketMessage[]
+}
+
+// Wiadomości w zgłoszeniach
+model TicketMessage {
+  id        String    @id @default(cuid())
+  ticketId  String
+  userId    String?   // Null dla wiadomości systemowych
+  isAdmin   Boolean   @default(false)
+  content   String    @db.Text
+  attachments Json?
+  createdAt DateTime  @default(now())
+
+  ticket    Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+// Promocje
+model Promotion {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?   @db.Text
+  image       String?
+  discountType DiscountType
+  discountValue Decimal  @db.Decimal(10, 2)
+  code        String?   @unique
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  items       PromotionItem[]
+}
+
+// Pozycje promocji
+model PromotionItem {
+  id          String    @id @default(cuid())
+  promotionId String
+  productId   String
+  createdAt   DateTime  @default(now())
+
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([promotionId, productId])
+}
+
+// Banery
+model Banner {
+  id          String    @id @default(cuid())
+  title       String
+  subtitle    String?
+  image       String
+  link        String?
+  position    String
+  isActive    Boolean   @default(true)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// Newsletter
+model Newsletter {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+// Kampanie newslettera
+model NewsletterCampaign {
+  id          String    @id @default(cuid())
+  title       String
+  content     String    @db.Text
+  sentDate    DateTime?
+  recipients  Int       @default(0)
+  openCount   Int       @default(0)
+  clickCount  Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// Enums
+enum UserRole {
+  ADMIN
+  MANAGER
+  CUSTOMER
+}
+
+enum AddressType {
+  SHIPPING
+  BILLING
+  BOTH
+}
+
+enum OrderStatus {
+  PROCESSING
+  SHIPPED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+  FAILED
+}
+
+enum TicketStatus {
+  OPEN
+  PENDING
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
