@@ -1,29 +1,24 @@
 'use client';
 
+import type React from 'react';
+
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 
+// import { register } from "@/lib/auth"
+import PasswordInput from '@/components/auth/password-input';
 import SocialButtons from '@/components/auth/social-buttons';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
-interface RegisterFormProps {
-  isLoading: boolean;
-  setIsLoading: (isLoading: boolean) => void;
-}
-
-export default function RegisterForm({
-  isLoading,
-  setIsLoading,
-}: RegisterFormProps) {
+export default function RegisterForm() {
   const router = useRouter();
 
-  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -31,33 +26,31 @@ export default function RegisterForm({
     confirmPassword: '',
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsLoading(true);
 
-    // Walidacja haseł
     if (formData.password !== formData.confirmPassword) {
       toast('Błąd rejestracji', {
         description: 'Hasła nie są identyczne. Spróbuj ponownie.',
       });
-      setIsLoading(false);
       return;
     }
 
-    try {
-      // Tutaj będzie integracja z API do rejestracji
-      console.log('Register data:', formData);
+    setIsLoading(true);
 
-      // Symulacja opóźnienia rejestracji
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      // await register({
+      //   name: formData.name,
+      //   email: formData.email,
+      //   password: formData.password,
+      // })
 
       toast('Konto utworzone', {
         description:
           'Twoje konto zostało pomyślnie utworzone. Możesz się teraz zalogować.',
       });
 
-      // Przełącz na zakładkę logowania po udanej rejestracji
-      router.push('/auth?tab=login');
+      router.push('/auth/login');
     } catch (error) {
       console.error('Register error:', error);
       toast('Błąd rejestracji', {
@@ -68,85 +61,60 @@ export default function RegisterForm({
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
   return (
-    <>
+    <div className="space-y-4">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="register-name">Imię i nazwisko</Label>
+          <Label htmlFor="name">Imię i nazwisko</Label>
           <Input
-            id="register-name"
-            type="text"
+            id="name"
             placeholder="Jan Kowalski"
             value={formData.name}
-            onChange={(e) => handleInputChange('name', e.target.value)}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             required
             disabled={isLoading}
           />
         </div>
+
         <div className="space-y-2">
-          <Label htmlFor="register-email">Email</Label>
+          <Label htmlFor="email">Email</Label>
           <Input
-            id="register-email"
+            id="email"
             type="email"
             placeholder="twoj@email.com"
             value={formData.email}
-            onChange={(e) => handleInputChange('email', e.target.value)}
-            required
-            disabled={isLoading}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="register-password">Hasło</Label>
-          <div className="relative">
-            <Input
-              id="register-password"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="••••••••"
-              value={formData.password}
-              onChange={(e) => handleInputChange('password', e.target.value)}
-              required
-              disabled={isLoading}
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-              onClick={() => setShowPassword(!showPassword)}
-              disabled={isLoading}
-            >
-              {showPassword ? (
-                <EyeOff className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <Eye className="h-4 w-4 text-muted-foreground" />
-              )}
-              <span className="sr-only">
-                {showPassword ? 'Ukryj hasło' : 'Pokaż hasło'}
-              </span>
-            </Button>
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="register-confirm-password">Potwierdź hasło</Label>
-          <Input
-            id="register-confirm-password"
-            type={showPassword ? 'text' : 'password'}
-            placeholder="••••••••"
-            value={formData.confirmPassword}
             onChange={(e) =>
-              handleInputChange('confirmPassword', e.target.value)
+              setFormData({ ...formData, email: e.target.value })
             }
             required
             disabled={isLoading}
           />
         </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="password">Hasło</Label>
+          <PasswordInput
+            id="password"
+            value={formData.password}
+            onChange={(e) =>
+              setFormData({ ...formData, password: e.target.value })
+            }
+            disabled={isLoading}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="confirmPassword">Potwierdź hasło</Label>
+          <PasswordInput
+            id="confirmPassword"
+            value={formData.confirmPassword}
+            onChange={(e) =>
+              setFormData({ ...formData, confirmPassword: e.target.value })
+            }
+            disabled={isLoading}
+          />
+        </div>
+
         <div className="text-xs text-muted-foreground">
           Rejestrując się, akceptujesz nasz{' '}
           <Link href="/regulamin" className="underline hover:text-primary">
@@ -161,15 +129,9 @@ export default function RegisterForm({
           </Link>
           .
         </div>
+
         <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Rejestracja...
-            </>
-          ) : (
-            'Zarejestruj się'
-          )}
+          {isLoading ? 'Rejestracja...' : 'Zarejestruj się'}
         </Button>
       </form>
 
@@ -185,6 +147,6 @@ export default function RegisterForm({
       </div>
 
       <SocialButtons isLoading={isLoading} />
-    </>
+    </div>
   );
 }

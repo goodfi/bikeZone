@@ -2,9 +2,8 @@ import type React from 'react';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Logowanie i rejestracja | BikeZone',
-  description:
-    'Zaloguj się do swojego konta lub utwórz nowe konto w sklepie BikeZone',
+  title: 'Autoryzacja | BikeZone',
+  description: 'Zaloguj się lub zarejestruj w sklepie BikeZone',
 };
 
 export default function AuthLayout({
@@ -13,8 +12,8 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <main className="flex min-h-screen items-center justify-center">
+    <div className="container flex min-h-screen items-center justify-center py-8">
       {children}
-    </main>
+    </div>
   );
 }

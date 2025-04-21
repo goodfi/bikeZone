@@ -1,52 +1,40 @@
 'use client';
 
-import { useState } from 'react';
+import type React from 'react';
+
+import { ChangeEvent, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 
+// import { login } from "@/lib/auth"
+import PasswordInput from '@/components/auth/password-input';
 import SocialButtons from '@/components/auth/social-buttons';
 import { toast } from 'sonner';
 
 interface LoginFormProps {
-  callbackUrl: string;
-  isLoading: boolean;
-  setIsLoading: (isLoading: boolean) => void;
+  callbackUrl?: string;
 }
 
-export default function LoginForm({
-  callbackUrl,
-  isLoading,
-  setIsLoading,
-}: LoginFormProps) {
-  const router = useRouter();
-
-  const [showPassword, setShowPassword] = useState(false);
+export default function LoginForm({ callbackUrl = '/' }: LoginFormProps) {
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Tutaj będzie integracja z API do logowania
-      console.log('Login data:', formData);
-
-      // Symulacja opóźnienia logowania
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      toast('Zalogowano pomyślnie', {
-        description: 'Zostałeś pomyślnie zalogowany do swojego konta.',
-      });
-
-      router.push(callbackUrl);
+      // await login({
+      //   email: formData.email,
+      //   password: formData.password,
+      //   callbackUrl,
+      // })
     } catch (error) {
       console.error('Login error:', error);
       toast('Błąd logowania', {
@@ -57,31 +45,27 @@ export default function LoginForm({
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
   return (
-    <>
+    <div className="space-y-4">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="login-email">Email</Label>
+          <Label htmlFor="email">Email</Label>
           <Input
-            id="login-email"
+            id="email"
             type="email"
             placeholder="twoj@email.com"
             value={formData.email}
-            onChange={(e) => handleInputChange('email', e.target.value)}
+            onChange={(e) =>
+              setFormData({ ...formData, email: e.target.value })
+            }
             required
             disabled={isLoading}
           />
         </div>
+
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label htmlFor="login-password">Hasło</Label>
+            <Label htmlFor="password">Hasło</Label>
             <Link
               href="/auth/reset-password"
               className="text-xs text-muted-foreground hover:text-primary"
@@ -89,44 +73,18 @@ export default function LoginForm({
               Zapomniałeś hasła?
             </Link>
           </div>
-          <div className="relative">
-            <Input
-              id="login-password"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="••••••••"
-              value={formData.password}
-              onChange={(e) => handleInputChange('password', e.target.value)}
-              required
-              disabled={isLoading}
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-              onClick={() => setShowPassword(!showPassword)}
-              disabled={isLoading}
-            >
-              {showPassword ? (
-                <EyeOff className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <Eye className="h-4 w-4 text-muted-foreground" />
-              )}
-              <span className="sr-only">
-                {showPassword ? 'Ukryj hasło' : 'Pokaż hasło'}
-              </span>
-            </Button>
-          </div>
+          <PasswordInput
+            id="password"
+            value={formData.password}
+            onChange={(e) =>
+              setFormData({ ...formData, password: e.target.value })
+            }
+            disabled={isLoading}
+          />
         </div>
+
         <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Logowanie...
-            </>
-          ) : (
-            'Zaloguj się'
-          )}
+          {isLoading ? 'Logowanie...' : 'Zaloguj się'}
         </Button>
       </form>
 
@@ -142,6 +100,6 @@ export default function LoginForm({
       </div>
 
       <SocialButtons isLoading={isLoading} />
-    </>
+    </div>
   );
 }
